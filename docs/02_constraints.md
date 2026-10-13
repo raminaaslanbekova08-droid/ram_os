@@ -56,4 +56,3 @@
 | stock_item_id | да | нет | - | - |
 | quantity | да | нет | quantity > 0 | - |
 | price | да | нет | price > 0 | - |
-

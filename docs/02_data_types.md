@@ -63,4 +63,3 @@
 | stock_item_id | INTEGER | ссылка на товарную позицию | да | - | FOREIGN KEY → stock_items |
 | quantity | INTEGER | количество | да | - | CHECK (quantity > 0) |
 | price | NUMERIC(10,2) | цена позиции | да | - | CHECK (price > 0) |
-
