@@ -100,3 +100,5 @@
 | products | stock_items | 1:N | ON DELETE RESTRICT |
 | sizes | stock_items | 1:N | ON DELETE RESTRICT |
 | stock_items | order_items | 1:N | ON DELETE RESTRICT |
+
+

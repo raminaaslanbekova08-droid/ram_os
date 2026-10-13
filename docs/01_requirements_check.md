@@ -13,3 +13,5 @@
 *   **Авторизованный:** Доступ к `orders`, `order_items` (INSERT, UPDATE, DELETE).
 *   **Менеджер:** Доступ к `orders` (SELECT, INSERT, DELETE).
 *   **Администратор:** Доступ к `orders` (UPDATE).
+  
+  
