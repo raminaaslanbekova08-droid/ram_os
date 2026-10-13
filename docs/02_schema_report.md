@@ -14,5 +14,3 @@
 - Внешние ключи:
   - `users.role_id → roles.role_id` (ON DELETE RESTRICT)
   - `stock_items.product_id → products.product_id`
- 
- 
