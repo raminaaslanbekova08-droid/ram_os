@@ -1,122 +1,151 @@
+"""
+Скрипт заполнения базы данных тестовыми данными.
+"""
+
 import sqlite3
-from db_init import get_connection, init_db, DB_PATH
 import os
 
+DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'db', 'shoe_store.sqlite')
 
-def seed():
-    if not os.path.exists(DB_PATH):
-        init_db()
+
+def get_connection():
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA foreign_keys = ON")
+    return conn
+
+
+def seed_roles(conn):
+    cursor = conn.cursor()
+    cursor.executemany(
+        "INSERT OR IGNORE INTO roles (name, description) VALUES (?, ?)",
+        [
+            ('admin', 'Администратор системы'),
+            ('manager', 'Менеджер магазина'),
+            ('customer', 'Покупатель'),
+        ]
+    )
+    conn.commit()
+    print("Роли добавлены.")
+
+
+def seed_users(conn):
+    cursor = conn.cursor()
+    cursor.executemany(
+        """INSERT OR IGNORE INTO users
+           (role_id, login, password_hash, first_name, last_name, email)
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        [
+            (1, 'admin', 'hash_admin_123', 'Иван', 'Иванов', 'admin@example.com'),
+            (2, 'manager1', 'hash_manager_1', 'Пётр', 'Петров', 'manager@example.com'),
+            (3, 'user1', 'hash_user_1', 'Анна', 'Сидорова', 'anna@example.com'),
+            (3, 'user2', 'hash_user_2', 'Олег', 'Кузнецов', 'oleg@example.com'),
+        ]
+    )
+    conn.commit()
+    print("Пользователи добавлены.")
+
+
+def seed_sizes(conn):
+    cursor = conn.cursor()
+    sizes = [(36,), (37,), (38,), (39,), (40,), (41,), (42,), (43,), (44,), (45,)]
+    cursor.executemany(
+        "INSERT OR IGNORE INTO sizes (size_value) VALUES (?)",
+        sizes
+    )
+    conn.commit()
+    print("Размеры добавлены.")
+
+
+def seed_products(conn):
+    cursor = conn.cursor()
+    cursor.executemany(
+        """INSERT OR IGNORE INTO products
+           (name, description, price, category, manufacturer, image_path)
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        [
+            ('Кроссовки Nike Air', 'Спортивные кроссовки', 8999.00, 'кроссовки', 'Nike', 'images/nike_air.jpg'),
+            ('Туфли Classic', 'Классические туфли', 5499.00, 'туфли', 'Ecco', 'images/ecco_classic.jpg'),
+            ('Ботинки Winter', 'Зимние ботинки', 12999.00, 'ботинки', 'Timberland', 'images/timberland.jpg'),
+            ('Сандалии Summer', 'Летние сандалии', 2999.00, 'сандалии', 'Adidas', 'images/adidas_summer.jpg'),
+            ('Кеды Urban', 'Городские кеды', 4599.00, 'кеды', 'Converse', 'images/converse.jpg'),
+        ]
+    )
+    conn.commit()
+    print("Товары добавлены.")
+
+
+def seed_stock_items(conn):
+    cursor = conn.cursor()
+    items = []
+    for product_id in range(1, 6):
+        for size_id in [3, 4, 5, 6, 7]:
+            items.append((product_id, size_id, 10))
+
+    cursor.executemany(
+        """INSERT OR IGNORE INTO stock_items
+           (product_id, size_id, quantity_available)
+           VALUES (?, ?, ?)""",
+        items
+    )
+    conn.commit()
+    print("Товарные позиции добавлены.")
+
+
+def seed_orders(conn):
+    cursor = conn.cursor()
+    cursor.executemany(
+        """INSERT INTO orders (user_id, order_date, status, total_amount)
+           VALUES (?, ?, ?, ?)""",
+        [
+            (3, '2024-01-15 10:30:00', 'completed', 8999.00),
+            (3, '2024-02-20 14:15:00', 'paid', 5499.00),
+            (4, '2024-03-10 09:00:00', 'new', 12999.00),
+        ]
+    )
+    conn.commit()
+    print("Заказы добавлены.")
+
+
+def seed_order_items(conn):
+    cursor = conn.cursor()
+    cursor.executemany(
+        """INSERT INTO order_items (order_id, stock_item_id, quantity, price)
+           VALUES (?, ?, ?, ?)""",
+        [
+            (1, 1, 1, 8999.00),
+            (2, 6, 1, 5499.00),
+            (3, 11, 1, 12999.00),
+            (3, 12, 1, 12999.00),
+        ]
+    )
+    conn.commit()
+    print("Позиции заказов добавлены.")
+
+
+def seed_all():
+    print("=" * 60)
+    print("ЗАПОЛНЕНИЕ БАЗЫ ТЕСТОВЫМИ ДАННЫМИ")
+    print("=" * 60)
 
     conn = get_connection()
-    c = conn.cursor()
 
-    c.executemany(
-        "INSERT OR IGNORE INTO roles (role_name) VALUES (?)",
-        [("admin",), ("manager",), ("user",)]
-    )
+    seed_roles(conn)
+    seed_users(conn)
+    seed_sizes(conn)
+    seed_products(conn)
+    seed_stock_items(conn)
+    seed_orders(conn)
+    seed_order_items(conn)
 
-    c.executemany(
-        """
-        INSERT OR IGNORE INTO users (last_name, first_name, middle_name, login, role_id)
-        VALUES (?, ?, ?, ?, (SELECT role_id FROM roles WHERE role_name = ?))
-        """,
-        [
-            ("Админов", "Админ", None, "admin", "admin"),
-            ("Менеджеров", "Менеджер", None, "manager", "manager"),
-            ("Пользователев", "Пользователь", None, "user", "user"),
-        ]
-    )
-
-    c.executemany(
-        """
-        INSERT OR IGNORE INTO products (product_name, category, manufacturer, price, image_path)
-        VALUES (?, ?, ?, ?, ?)
-        """,
-        [
-            ("Кроссовки Nike Air", "спорт", "Nike", 7990.00, "images/nike_air.jpg"),
-            ("Туфли Clarks", "классика", "Clarks", 12990.00, "images/clarks.jpg"),
-            ("Ботинки Timberland", "повседневная", "Timberland", 15990.00, "images/timberland.jpg"),
-            ("Сандалии Adidas", "лето", "Adidas", 3990.00, "images/adidas_sandals.jpg"),
-            ("Кеды Converse", "спорт", "Converse", 5490.00, "images/converse.jpg"),
-        ]
-    )
-
-    c.executemany(
-        "INSERT OR IGNORE INTO sizes (size_value) VALUES (?)",
-        [(36,), (37,), (38,), (39,), (40,)]
-    )
-
-    c.executemany(
-        """
-        INSERT OR IGNORE INTO stock_items (product_id, size_id, quantity)
-        VALUES (
-            (SELECT product_id FROM products WHERE product_name = ?),
-            (SELECT size_id    FROM sizes    WHERE size_value = ?),
-            ?
-        )
-        """,
-        [
-            ("Кроссовки Nike Air", 39, 10),
-            ("Кроссовки Nike Air", 40, 5),
-            ("Туфли Clarks", 38, 7),
-            ("Туфли Clarks", 39, 3),
-            ("Ботинки Timberland", 40, 2),
-            ("Сандалии Adidas", 36, 15),
-            ("Сандалии Adidas", 37, 8),
-            ("Кеды Converse", 38, 12),
-            ("Кеды Converse", 39, 6),
-            ("Кеды Converse", 40, 4),
-        ]
-    )
-
-    c.executemany(
-        """
-        INSERT OR IGNORE INTO orders (user_id, order_date, status)
-        VALUES (
-            (SELECT user_id FROM users WHERE login = ?),
-            ?, ?
-        )
-        """,
-        [
-            ("admin", "2024-01-15", "completed"),
-            ("manager", "2024-02-20", "processing"),
-            ("user", "2024-03-05", "new"),
-        ]
-    )
-
-    c.executemany(
-        """
-        INSERT OR IGNORE INTO order_items (order_id, stock_item_id, quantity, price)
-        VALUES (
-            (SELECT order_id FROM orders WHERE order_date = ?),
-            (SELECT stock_item_id FROM stock_items
-                WHERE product_id = (SELECT product_id FROM products WHERE product_name = ?)
-                  AND size_id    = (SELECT size_id    FROM sizes    WHERE size_value = ?)),
-            ?,
-            (SELECT price FROM products WHERE product_name = ?)
-        )
-        """,
-        [
-            ("2024-01-15", "Кроссовки Nike Air", 39, 1, "Кроссовки Nike Air"),
-            ("2024-01-15", "Кеды Converse", 38, 2, "Кеды Converse"),
-            ("2024-02-20", "Туфли Clarks", 38, 1, "Туфли Clarks"),
-            ("2024-02-20", "Сандалии Adidas", 36, 1, "Сандалии Adidas"),
-            ("2024-03-05", "Ботинки Timberland", 40, 1, "Ботинки Timberland"),
-            ("2024-03-05", "Кеды Converse", 40, 1, "Кеды Converse"),
-        ]
-    )
-
-    conn.commit()
-
-    # --- Итоговый отчёт ---
-    print("Тестовые данные вставлены. Количество записей:")
-    for table in ("roles", "users", "products", "sizes",
-                  "stock_items", "orders", "order_items"):
-        cnt = c.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
-        print(f"  {table:15s} -> {cnt}")
+    cursor = conn.cursor()
+    for table in ['roles', 'users', 'sizes', 'products', 'stock_items', 'orders', 'order_items']:
+        cursor.execute(f"SELECT COUNT(*) FROM {table}")
+        count = cursor.fetchone()[0]
+        print(f"  {table}: {count} записей")
 
     conn.close()
+    print("\nБаза данных заполнена.")
 
 
-if __name__ == "__main__":
-    seed()
+if __name__ == '__main__':
+    seed_all()

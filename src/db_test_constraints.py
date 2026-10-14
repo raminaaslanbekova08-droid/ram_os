@@ -1,152 +1,169 @@
+"""
+Скрипт проверки работы ограничений целостности.
+Пытается нарушить каждое ограничение и проверяет, что база отказывает.
+"""
+
 import sqlite3
 import os
 
-DB_PATH = "db/shoe_store.sqlite"
+DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'db', 'shoe_store.sqlite')
 
 
-def run_test(name, query, params=(), expect_error=True):
+def get_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.execute("PRAGMA foreign_keys = ON")
+    return conn
+
+
+def try_insert(conn, description, sql, params=()):
+    """Пытается выполнить INSERT и сообщает результат."""
     try:
-        conn.execute(query, params)
+        conn.execute(sql, params)
         conn.commit()
-        if expect_error:
-            print(f"[FAIL] {name}: ошибка не возникла")
-            return "не пройден", "ошибка не возникла"
-        else:
-            print(f"[OK]   {name}: выполнено без ошибки")
-            return "пройден", "выполнено"
-    except sqlite3.Error as e:
-        if expect_error:
-            print(f"[OK]   {name}: получена ошибка — {e}")
-            return "пройден", f"ошибка: {e}"
-        else:
-            print(f"[FAIL] {name}: неожиданная ошибка — {e}")
-            return "не пройден", f"ошибка: {e}"
-    finally:
-        conn.close()
+        print(f"  ✗ ОШИБКА: {description} — вставка прошла (ограничение не сработало!)")
+        return False
+    except sqlite3.IntegrityError as e:
+        print(f"  ✓ OK: {description} — база отказала: {e}")
+        return True
 
 
-def prepare_data():
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("PRAGMA foreign_keys = ON")
-    conn.execute("INSERT OR IGNORE INTO roles (role_id, role_name) VALUES (1, 'admin')")
-    conn.execute("INSERT OR IGNORE INTO roles (role_id, role_name) VALUES (2, 'manager')")
-    conn.execute(
-        "INSERT OR IGNORE INTO users (user_id, last_name, first_name, login, role_id) "
-        "VALUES (1, 'Ivanov', 'Ivan', 'admin', 1)"
+def try_delete(conn, description, sql, params=()):
+    """Пытается выполнить DELETE и сообщает результат."""
+    try:
+        conn.execute(sql, params)
+        conn.commit()
+        print(f"  ✗ ОШИБКА: {description} — удаление прошло (ограничение не сработало!)")
+        return False
+    except sqlite3.IntegrityError as e:
+        print(f"  ✓ OK: {description} — база отказала: {e}")
+        return True
+
+
+def test_check_constraints(conn):
+    print("\n--- Проверка ограничений CHECK ---")
+
+    try_insert(conn,
+        "товар с ценой -100",
+        "INSERT INTO products (name, price) VALUES (?, ?)",
+        ('Тестовый товар', -100)
     )
-    conn.execute("INSERT OR IGNORE INTO sizes (size_id, size_value) VALUES (1, 42)")
-    conn.execute(
-        "INSERT OR IGNORE INTO products (product_id, product_name, category, manufacturer, price) "
-        "VALUES (1, 'Boot', 'cat', 'man', 5000)"
+
+    try_insert(conn,
+        "товар с пустым наименованием",
+        "INSERT INTO products (name, price) VALUES (?, ?)",
+        ('', 1000)
     )
-    conn.execute(
-        "INSERT OR IGNORE INTO stock_items (stock_item_id, product_id, size_id, quantity) "
-        "VALUES (1, 1, 1, 10)"
+
+    try_insert(conn,
+        "товарная позиция с количеством -5",
+        "INSERT INTO stock_items (product_id, size_id, quantity_available) VALUES (?, ?, ?)",
+        (1, 8, -5)
+    )
+
+    try_insert(conn,
+        "позиция заказа с количеством 0",
+        "INSERT INTO order_items (order_id, stock_item_id, quantity, price) VALUES (?, ?, ?, ?)",
+        (1, 1, 0, 100)
+    )
+
+    try_insert(conn,
+        "пользователь с логином из 2 символов",
+        "INSERT INTO users (role_id, login, password_hash) VALUES (?, ?, ?)",
+        (3, 'ab', 'hash')
+    )
+
+    try_insert(conn,
+        "размер 100",
+        "INSERT INTO sizes (size_value) VALUES (?)",
+        (100,)
+    )
+
+
+def test_foreign_keys(conn):
+    print("\n--- Проверка ограничений FOREIGN KEY ---")
+
+    try_insert(conn,
+        "пользователь с несуществующей ролью",
+        "INSERT INTO users (role_id, login, password_hash) VALUES (?, ?, ?)",
+        (999, 'testuser', 'hash')
+    )
+
+    try_insert(conn,
+        "товарная позиция с несуществующим товаром",
+        "INSERT INTO stock_items (product_id, size_id, quantity_available) VALUES (?, ?, ?)",
+        (999, 1, 10)
+    )
+
+    try_delete(conn,
+        "удаление роли, на которую ссылаются пользователи",
+        "DELETE FROM roles WHERE id = ?",
+        (3,)
+    )
+
+    try_delete(conn,
+        "удаление пользователя, у которого есть заказы",
+        "DELETE FROM users WHERE id = ?",
+        (3,)
+    )
+
+    try_delete(conn,
+        "удаление товара, у которого есть позиции",
+        "DELETE FROM products WHERE id = ?",
+        (1,)
+    )
+
+
+def test_cascade(conn):
+    print("\n--- Проверка каскадного удаления ---")
+
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "INSERT INTO orders (user_id, order_date, status, total_amount) VALUES (?, ?, ?, ?)",
+        (3, '2024-04-01 12:00:00', 'new', 1000)
+    )
+    temp_order_id = cursor.lastrowid
+
+    cursor.execute(
+        "INSERT INTO order_items (order_id, stock_item_id, quantity, price) VALUES (?, ?, ?, ?)",
+        (temp_order_id, 1, 1, 1000)
     )
     conn.commit()
-    conn.close()
+
+    cursor.execute("SELECT COUNT(*) FROM order_items WHERE order_id = ?", (temp_order_id,))
+    before = cursor.fetchone()[0]
+    print(f"  Позиций до удаления заказа: {before}")
+
+    cursor.execute("DELETE FROM orders WHERE id = ?", (temp_order_id,))
+    conn.commit()
+
+    cursor.execute("SELECT COUNT(*) FROM order_items WHERE order_id = ?", (temp_order_id,))
+    after = cursor.fetchone()[0]
+    print(f"  Позиций после удаления заказа: {after}")
+
+    if before > 0 and after == 0:
+        print("  ✓ OK: каскадное удаление работает")
+    else:
+        print("  ✗ ОШИБКА: каскадное удаление не работает")
 
 
 def main():
-    os.makedirs("docs", exist_ok=True)
-    prepare_data()
+    print("=" * 60)
+    print("ПРОВЕРКА ОГРАНИЧЕНИЙ ЦЕЛОСТНОСТИ")
+    print("=" * 60)
 
-    results = []
+    conn = get_connection()
 
-    results.append((
-        "UNIQUE на login",
-        *run_test(
-            "UNIQUE на login",
-            "INSERT INTO users (last_name, first_name, login, role_id) VALUES (?, ?, ?, ?)",
-            ("Petrov", "Petr", "admin", 1),
-        )
-    ))
+    test_check_constraints(conn)
+    test_foreign_keys(conn)
+    test_cascade(conn)
 
-    results.append((
-        "NOT NULL на last_name",
-        *run_test(
-            "NOT NULL на last_name",
-            "INSERT INTO users (first_name, login, role_id) VALUES (?, ?, ?)",
-            ("Petr", "petr", 1),
-        )
-    ))
-
-    results.append((
-        "CHECK на price",
-        *run_test(
-            "CHECK на price",
-            "INSERT INTO products (product_name, category, manufacturer, price) VALUES (?, ?, ?, ?)",
-            ("Test", "cat", "man", -100),
-        )
-    ))
-
-    results.append((
-        "CHECK на quantity",
-        *run_test(
-            "CHECK на quantity",
-            "INSERT INTO stock_items (product_id, size_id, quantity) VALUES (?, ?, ?)",
-            (1, 1, -5),
-        )
-    ))
-
-    results.append((
-        "FOREIGN KEY на role_id",
-        *run_test(
-            "FOREIGN KEY на role_id",
-            "INSERT INTO users (last_name, first_name, login, role_id) VALUES (?, ?, ?, ?)",
-            ("Sidorov", "Sidr", "sidor", 999),
-        )
-    ))
-
-    results.append((
-        "ON DELETE RESTRICT",
-        *run_test(
-            "ON DELETE RESTRICT",
-            "DELETE FROM roles WHERE role_id = ?",
-            (1,),
-        )
-    ))
-
-    # ON DELETE CASCADE
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("PRAGMA foreign_keys = ON")
-    conn.execute("INSERT OR IGNORE INTO orders (order_id, user_id, order_date) VALUES (1, 1, '2024-01-01')")
-    conn.execute(
-        "INSERT OR IGNORE INTO order_items (order_item_id, order_id, stock_item_id, quantity, price) "
-        "VALUES (1, 1, 1, 2, 5000)"
-    )
-    conn.commit()
-    conn.execute("DELETE FROM orders WHERE order_id = 1")
-    conn.commit()
-    count = conn.execute("SELECT COUNT(*) FROM order_items WHERE order_id = 1").fetchone()[0]
     conn.close()
-    if count == 0:
-        print("[OK]   ON DELETE CASCADE: позиции удалены каскадно")
-        results.append(("ON DELETE CASCADE", "пройден", "каскадное удаление"))
-    else:
-        print(f"[FAIL] ON DELETE CASCADE: осталось {count} позиций")
-        results.append(("ON DELETE CASCADE", "не пройден", f"осталось {count}"))
 
-    with open("docs/02_constraints_test.md", "w", encoding="utf-8") as f:
-        f.write("# Результаты проверки ограничений\n\n")
-        f.write("| Ограничение | Ожидаемый результат | Фактический результат | Статус |\n")
-        f.write("|-------------|---------------------|-----------------------|--------|\n")
-        expected = {
-            "UNIQUE на login": "ошибка",
-            "NOT NULL на last_name": "ошибка",
-            "CHECK на price": "ошибка",
-            "CHECK на quantity": "ошибка",
-            "FOREIGN KEY на role_id": "ошибка",
-            "ON DELETE RESTRICT": "ошибка",
-            "ON DELETE CASCADE": "каскадное удаление",
-        }
-        for name, status, fact in results:
-            f.write(f"| {name} | {expected[name]} | {fact} | {status} |\n")
-
-    print("\n Отчёт сохранён: docs/02_constraints_test.md")
+    print("\n" + "=" * 60)
+    print("ПРОВЕРКА ЗАВЕРШЕНА")
+    print("=" * 60)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
