@@ -1,7 +1,7 @@
 import sqlite3
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'db', 'shoe-store.sqlite')
+DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'db', 'shoe_store.sqlite')
 OUT_PATH = os.path.join(os.path.dirname(__file__), '..', 'db', 'schema.sql')
 
 conn = sqlite3.connect(DB_PATH)
