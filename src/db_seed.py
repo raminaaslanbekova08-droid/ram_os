@@ -1,151 +1,120 @@
 """
-Скрипт заполнения базы данных тестовыми данными.
+db_seed.py — заполнение БД тестовыми данными.
 """
 
 import sqlite3
-import os
+from pathlib import Path
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'db', 'shoe_store.sqlite')
+BASE_DIR = Path(__file__).resolve().parent.parent
+DB_PATH = BASE_DIR / "db" / "shoe_store.sqlite"
 
 
-def get_connection():
+def get_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
-    conn.execute("PRAGMA foreign_keys = ON")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON;")
     return conn
 
 
 def seed_roles(conn):
-    cursor = conn.cursor()
-    cursor.executemany(
-        "INSERT OR IGNORE INTO roles (name, description) VALUES (?, ?)",
-        [
-            ('admin', 'Администратор системы'),
-            ('manager', 'Менеджер магазина'),
-            ('customer', 'Покупатель'),
-        ]
-    )
-    conn.commit()
-    print("Роли добавлены.")
+    conn.executemany("INSERT INTO roles(role_name) VALUES (?);",
+                     [("администратор",), ("менеджер",), ("авторизованный пользователь",)])
 
 
 def seed_users(conn):
-    cursor = conn.cursor()
-    cursor.executemany(
-        """INSERT OR IGNORE INTO users
-           (role_id, login, password_hash, first_name, last_name, email)
-           VALUES (?, ?, ?, ?, ?, ?)""",
+    conn.executemany(
+        "INSERT INTO users(last_name, first_name, middle_name, login, role_id) "
+        "VALUES (?, ?, ?, ?, ?);",
         [
-            (1, 'admin', 'hash_admin_123', 'Иван', 'Иванов', 'admin@example.com'),
-            (2, 'manager1', 'hash_manager_1', 'Пётр', 'Петров', 'manager@example.com'),
-            (3, 'user1', 'hash_user_1', 'Анна', 'Сидорова', 'anna@example.com'),
-            (3, 'user2', 'hash_user_2', 'Олег', 'Кузнецов', 'oleg@example.com'),
-        ]
+            ("Иванов", "Иван", "Иванович", "admin", 1),
+            ("Петров", "Пётр", None, "manager1", 2),
+            ("Сидоров", "Семён", "Сергеевич", "user1", 3),
+        ],
     )
-    conn.commit()
-    print("Пользователи добавлены.")
 
 
 def seed_sizes(conn):
-    cursor = conn.cursor()
-    sizes = [(36,), (37,), (38,), (39,), (40,), (41,), (42,), (43,), (44,), (45,)]
-    cursor.executemany(
-        "INSERT OR IGNORE INTO sizes (size_value) VALUES (?)",
-        sizes
-    )
-    conn.commit()
-    print("Размеры добавлены.")
+    conn.executemany("INSERT INTO sizes(size_value) VALUES (?);",
+                     [(36,), (37,), (38,), (39,), (40,)])
 
 
 def seed_products(conn):
-    cursor = conn.cursor()
-    cursor.executemany(
-        """INSERT OR IGNORE INTO products
-           (name, description, price, category, manufacturer, image_path)
-           VALUES (?, ?, ?, ?, ?, ?)""",
+    conn.executemany(
+        "INSERT INTO products(category, subcategory, manufacturer, product_name, "
+        "image_path, composition, description, price) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?);",
         [
-            ('Кроссовки Nike Air', 'Спортивные кроссовки', 8999.00, 'кроссовки', 'Nike', 'images/nike_air.jpg'),
-            ('Туфли Classic', 'Классические туфли', 5499.00, 'туфли', 'Ecco', 'images/ecco_classic.jpg'),
-            ('Ботинки Winter', 'Зимние ботинки', 12999.00, 'ботинки', 'Timberland', 'images/timberland.jpg'),
-            ('Сандалии Summer', 'Летние сандалии', 2999.00, 'сандалии', 'Adidas', 'images/adidas_summer.jpg'),
-            ('Кеды Urban', 'Городские кеды', 4599.00, 'кеды', 'Converse', 'images/converse.jpg'),
-        ]
+            ("Кроссовки", "Беговые", "Nike", "Air Zoom Pegasus", None,
+             "текстиль, резина", "Лёгкие беговые кроссовки", 8990.0),
+            ("Кроссовки", "Повседневные", "Adidas", "Superstar", None,
+             "кожа, резина", "Классические кроссовки", 7490.0),
+            ("Туфли", "Классические", "Ecco", "Helsinki", None,
+             "натуральная кожа", "Строгие туфли", 12990.0),
+            ("Ботинки", "Зимние", "Timberland", "6-Inch Premium", None,
+             "нубук", "Тёплые ботинки", 15990.0),
+            ("Сандалии", "Летние", "Birkenstock", "Arizona", None,
+             "кожа", "Удобные сандалии", 5990.0),
+        ],
     )
-    conn.commit()
-    print("Товары добавлены.")
 
 
 def seed_stock_items(conn):
-    cursor = conn.cursor()
-    items = []
-    for product_id in range(1, 6):
-        for size_id in [3, 4, 5, 6, 7]:
-            items.append((product_id, size_id, 10))
-
-    cursor.executemany(
-        """INSERT OR IGNORE INTO stock_items
-           (product_id, size_id, quantity_available)
-           VALUES (?, ?, ?)""",
-        items
+    conn.executemany(
+        "INSERT INTO stock_items(product_id, size_id, quantity_available) "
+        "VALUES (?, ?, ?);",
+        [
+            (1,1,10), (1,2,8), (1,3,5),
+            (2,2,12), (2,3,7),
+            (3,3,4), (3,4,6),
+            (4,4,3), (4,5,2),
+            (5,5,15),
+        ],
     )
-    conn.commit()
-    print("Товарные позиции добавлены.")
 
 
 def seed_orders(conn):
-    cursor = conn.cursor()
-    cursor.executemany(
-        """INSERT INTO orders (user_id, order_date, status, total_amount)
-           VALUES (?, ?, ?, ?)""",
-        [
-            (3, '2024-01-15 10:30:00', 'completed', 8999.00),
-            (3, '2024-02-20 14:15:00', 'paid', 5499.00),
-            (4, '2024-03-10 09:00:00', 'new', 12999.00),
-        ]
-    )
-    conn.commit()
-    print("Заказы добавлены.")
+    conn.executemany("INSERT INTO orders(order_date, user_id) VALUES (?, ?);",
+                     [("2025-01-10", 1), ("2025-01-11", 2), ("2025-01-12", 3)])
 
 
 def seed_order_items(conn):
-    cursor = conn.cursor()
-    cursor.executemany(
-        """INSERT INTO order_items (order_id, stock_item_id, quantity, price)
-           VALUES (?, ?, ?, ?)""",
+    conn.executemany(
+        "INSERT INTO order_items(order_id, stock_item_id, quantity, price) "
+        "VALUES (?, ?, ?, ?);",
         [
-            (1, 1, 1, 8999.00),
-            (2, 6, 1, 5499.00),
-            (3, 11, 1, 12999.00),
-            (3, 12, 1, 12999.00),
-        ]
+            (1,1,1,8990.0),
+            (1,4,2,7490.0),
+            (2,6,1,12990.0),
+            (2,9,1,15990.0),
+            (3,10,2,5990.0),
+            (3,2,1,8990.0),
+        ],
     )
-    conn.commit()
-    print("Позиции заказов добавлены.")
 
 
-def seed_all():
-    print("=" * 60)
-    print("ЗАПОЛНЕНИЕ БАЗЫ ТЕСТОВЫМИ ДАННЫМИ")
-    print("=" * 60)
-
+def main():
     conn = get_connection()
+    try:
+        for t in ["order_items", "orders", "stock_items",
+                  "products", "users", "sizes", "roles"]:
+            conn.execute(f"DELETE FROM {t};")
+        try:
+            conn.execute("DELETE FROM sqlite_sequence;")
+        except sqlite3.OperationalError:
+            pass
 
-    seed_roles(conn)
-    seed_users(conn)
-    seed_sizes(conn)
-    seed_products(conn)
-    seed_stock_items(conn)
-    seed_orders(conn)
-    seed_order_items(conn)
-
-    cursor = conn.cursor()
-    for table in ['roles', 'users', 'sizes', 'products', 'stock_items', 'orders', 'order_items']:
-        cursor.execute(f"SELECT COUNT(*) FROM {table}")
-        count = cursor.fetchone()[0]
-        print(f"  {table}: {count} записей")
-
-    conn.close()
-    print("\nБаза данных заполнена.")
+        seed_roles(conn)
+        seed_users(conn)
+        seed_sizes(conn)
+        seed_products(conn)
+        seed_stock_items(conn)
+        seed_orders(conn)
+        seed_order_items(conn)
+        conn.commit()
+        print("[ok] Тестовые данные добавлены.")
+    finally:
+        conn.close()
 
 
-if __name__ == '__main__':
-    seed_all()
+if __name__ == "__main__":
+    main()
