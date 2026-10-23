@@ -1,46 +1,34 @@
-"""Выполняет queries/04_check_queries.sql и печатает результаты."""
 import sqlite3
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-DB_PATH = BASE_DIR / "db" / "shoe_store.sqlite"
-QUERIES_PATH = BASE_DIR / "queries" / "04_check_queries.sql"
+DB_PATH = Path(__file__).resolve().parent.parent / "db" / "shoe_store.sqlite"
+QUERIES_PATH = Path(__file__).resolve().parent.parent / "queries" / "04_check_queries.sql"
 
-
-def main():
+def run_queries():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
 
     with open(QUERIES_PATH, "r", encoding="utf-8") as f:
-        script = f.read()
+        sql_text = f.read()
 
-    cleaned_lines = []
-    for line in script.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("--") or not stripped:
-            continue
-        cleaned_lines.append(line)
-    cleaned = "\n".join(cleaned_lines)
+    statements = [s.strip() for s in sql_text.split(";") if s.strip()]
 
-    queries = [q.strip() for q in cleaned.split(";") if q.strip()]
-
-    for i, query in enumerate(queries, 1):
-        print(f"\n=== Запрос {i} ===")
-        print(query)
-        print("-" * 40)
+    for i, stmt in enumerate(statements, 1):
+        print(f"\n--- ЗАПРОС {i} ---")
+        print(stmt + ";")
         try:
-            rows = conn.execute(query).fetchall()
-            if not rows:
-                print("(пусто)")
+            cur.execute(stmt)
+            rows = cur.fetchall()
+            if rows:
+                for row in rows:
+                    print(" | ".join(str(val) for val in row))
             else:
-                print(" | ".join(rows[0].keys()))
-                for r in rows:
-                    print(" | ".join(str(v) for v in r))
+                print("(пусто)")
         except sqlite3.Error as e:
-            print(f"[!] Ошибка: {e}")
+            print(f"[ОШИБКА SQL] {e}")
 
     conn.close()
 
-
 if __name__ == "__main__":
-    main()
+    run_queries()

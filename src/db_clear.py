@@ -1,22 +1,37 @@
-from db_init import get_connection
+"""
+db_clear.py — удаляет все данные из таблиц, но не трогает структуру.
+"""
+import sqlite3
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+DB_PATH = BASE_DIR / "db" / "shoe_store.sqlite"
+
+TABLES = [
+    "order_items", "orders", "stock_items",
+    "products", "users", "sizes", "roles",
+]
 
 
-def clear_all():
-    conn = get_connection()
-    c = conn.cursor()
+def main():
+    if not DB_PATH.exists():
+        print(f"[!] Нет файла БД: {DB_PATH}")
+        return
 
-    c.execute("PRAGMA foreign_keys = OFF;")
-
-    for table in ("order_items", "orders", "stock_items",
-                  "users", "products", "sizes", "roles"):
-        c.execute(f"DELETE FROM {table};")
-        c.execute("DELETE FROM sqlite_sequence WHERE name = ?;", (table,))
-
-    c.execute("PRAGMA foreign_keys = ON;")
-    conn.commit()
-    conn.close()
-    print("Все таблицы очищены.")
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA foreign_keys = ON;")
+    try:
+        for t in TABLES:
+            conn.execute(f"DELETE FROM {t};")
+        try:
+            conn.execute("DELETE FROM sqlite_sequence;")
+        except sqlite3.OperationalError:
+            pass
+        conn.commit()
+        print("[ok] Все данные удалены, структура сохранена.")
+    finally:
+        conn.close()
 
 
 if __name__ == "__main__":
-    clear_all()
+    main()

@@ -1,153 +1,76 @@
-"""
-db_test_constraints.py — практическая проверка ограничений БД.
-"""
-
 import sqlite3
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-DB_PATH = BASE_DIR / "db" / "shoe_store.sqlite"
+DB_PATH = Path(__file__).resolve().parent.parent / "db" / "shoe_store.sqlite"
 
-
-def get_connection() -> sqlite3.Connection:
+def get_connection():
     conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON;")
     return conn
 
-
-def _expect_error(func, description: str) -> dict:
-    try:
-        func()
-        result, status = "ошибки НЕ было", "НЕ ПРОЙДЕН"
-    except sqlite3.Error as e:
-        result, status = f"ошибка: {e}", "пройден"
-    print(f"[{status}] {description}: {result}")
-    return {"description": description, "result": result, "status": status}
-
-
-def test_unique_login():
-    def action():
-        conn = get_connection()
-        try:
-            conn.execute("INSERT INTO roles(role_name) VALUES ('tmp_role');")
-            conn.execute("INSERT INTO users(last_name, first_name, login, role_id) "
-                         "VALUES ('A','B','same_login',1);")
-            conn.execute("INSERT INTO users(last_name, first_name, login, role_id) "
-                         "VALUES ('C','D','same_login',1);")
-        finally:
-            conn.rollback(); conn.close()
-    return _expect_error(action, "UNIQUE на login")
-
-
-def test_not_null_last_name():
-    def action():
-        conn = get_connection()
-        try:
-            conn.execute("INSERT INTO users(last_name, first_name, login, role_id) "
-                         "VALUES (NULL,'B','log1',1);")
-        finally:
-            conn.rollback(); conn.close()
-    return _expect_error(action, "NOT NULL на last_name")
-
-
-def test_check_price():
-    def action():
-        conn = get_connection()
-        try:
-            conn.execute("INSERT INTO products(category, manufacturer, product_name, price) "
-                         "VALUES ('cat','man','name',-5);")
-        finally:
-            conn.rollback(); conn.close()
-    return _expect_error(action, "CHECK на price")
-
-
-def test_check_quantity():
-    def action():
-        conn = get_connection()
-        try:
-            conn.execute("INSERT INTO products(category, manufacturer, product_name, price) "
-                         "VALUES ('cat','man','name',100);")
-            conn.execute("INSERT INTO sizes(size_value) VALUES (40);")
-            conn.execute("INSERT INTO stock_items(product_id, size_id, quantity_available) "
-                         "VALUES (1,1,-3);")
-        finally:
-            conn.rollback(); conn.close()
-    return _expect_error(action, "CHECK на quantity_available")
-
-
-def test_foreign_key():
-    def action():
-        conn = get_connection()
-        try:
-            conn.execute("INSERT INTO users(last_name, first_name, login, role_id) "
-                         "VALUES ('X','Y','fkuser',999);")
-        finally:
-            conn.rollback(); conn.close()
-    return _expect_error(action, "FOREIGN KEY на role_id")
-
-
-def test_on_delete_restrict():
-    def action():
-        conn = get_connection()
-        try:
-            conn.execute("INSERT INTO roles(role_name) VALUES ('r1');")
-            conn.execute("INSERT INTO users(last_name, first_name, login, role_id) "
-                         "VALUES ('X','Y','restr1',1);")
-            conn.execute("DELETE FROM roles WHERE role_id = 1;")
-        finally:
-            conn.rollback(); conn.close()
-    return _expect_error(action, "ON DELETE RESTRICT (roles → users)")
-
-
-def test_on_delete_cascade() -> dict:
+def run_test(test_name, query, params=()):
     conn = get_connection()
-    status, result = "НЕ ПРОЙДЕН", ""
     try:
-        conn.execute("INSERT INTO roles(role_name) VALUES ('r_casc');")
-        conn.execute("INSERT INTO users(last_name, first_name, login, role_id) "
-                     "VALUES ('U','U','casc_user',1);")
-        conn.execute("INSERT INTO products(category, manufacturer, product_name, price) "
-                     "VALUES ('c','m','p',100);")
-        conn.execute("INSERT INTO sizes(size_value) VALUES (41);")
-        conn.execute("INSERT INTO stock_items(product_id, size_id, quantity_available) "
-                     "VALUES (1,1,5);")
-        conn.execute("INSERT INTO orders(user_id) VALUES (1);")
-        conn.execute("INSERT INTO order_items(order_id, stock_item_id, quantity, price) "
-                     "VALUES (1,1,2,100);")
-
-        before = conn.execute("SELECT COUNT(*) FROM order_items WHERE order_id=1;").fetchone()[0]
-        conn.execute("DELETE FROM orders WHERE order_id = 1;")
-        after = conn.execute("SELECT COUNT(*) FROM order_items WHERE order_id=1;").fetchone()[0]
-
-        if before == 1 and after == 0:
-            status, result = "пройден", "каскадное удаление сработало"
-        else:
-            result = f"before={before}, after={after}"
+        conn.execute(query, params)
+        conn.commit()
+        print(f"[ПРОВАЛ] {test_name}: запрос прошел, а должен был упасть с ошибкой!")
     except sqlite3.Error as e:
-        result = f"ошибка: {e}"
+        print(f"[УСПЕХ] {test_name}: база корректно заблокировала запрос. Ошибка: {e}")
     finally:
-        conn.rollback(); conn.close()
-    print(f"[{status}] ON DELETE CASCADE: {result}")
-    return {"description": "ON DELETE CASCADE", "result": result, "status": status}
-
+        conn.rollback()
+        conn.close()
 
 def main():
-    print("=== Проверка ограничений ===\n")
-    results = [
-        test_unique_login(),
-        test_not_null_last_name(),
-        test_check_price(),
-        test_check_quantity(),
-        test_foreign_key(),
-        test_on_delete_restrict(),
-        test_on_delete_cascade(),
-    ]
-    print("\n=== Итоговая таблица ===")
-    print(f"{'Ограничение':<40}{'Результат':<30}{'Статус'}")
-    for r in results:
-        print(f"{r['description']:<40}{r['result']:<30}{r['status']}")
+    print("--- ТЕСТИРОВАНИЕ ОГРАНИЧЕНИЙ ---")
+    
+    
+    run_test("UNIQUE на login", 
+             "INSERT INTO users (last_name, first_name, login, role_id) VALUES ('Тест', 'Тест', 'admin', 1)")
+    
 
+    run_test("NOT NULL на last_name", 
+             "INSERT INTO users (last_name, first_name, login, role_id) VALUES (NULL, 'Тест', 'test1', 1)")
+    
+    
+    run_test("CHECK на price (отрицательная)", 
+             "INSERT INTO products (category, manufacturer, product_name, price) VALUES ('Тест', 'Тест', 'Тест', -100)")
+    
+
+    run_test("CHECK на quantity (отрицательное)", 
+             "INSERT INTO stock_items (product_id, size_id, quantity_available) VALUES (1, 1, -5)")
+
+    
+    run_test("FOREIGN KEY на role_id (несуществующая роль)", 
+             "INSERT INTO users (last_name, first_name, login, role_id) VALUES ('Тест', 'Тест', 'test2', 999)")
+    
+
+    run_test("ON DELETE RESTRICT (удаление роли с юзерами)", 
+             "DELETE FROM roles WHERE role_id = 1")
+             
+
+    conn = get_connection()
+    try:
+
+        cur = conn.cursor()
+        cur.execute("INSERT INTO orders (order_date, user_id) VALUES ('2024-03-01', 3)")
+        order_id = cur.lastrowid
+        cur.execute("INSERT INTO order_items (order_id, stock_item_id, quantity, price) VALUES (?, 1, 1, 100)", (order_id,))
+        conn.commit()
+        
+
+        cur.execute("DELETE FROM orders WHERE order_id = ?", (order_id,))
+        conn.commit()
+        
+
+        cur.execute("SELECT COUNT(*) FROM order_items WHERE order_id = ?", (order_id,))
+        if cur.fetchone()[0] == 0:
+            print("[УСПЕХ] ON DELETE CASCADE: позиции удалились вместе с заказом.")
+        else:
+            print("[ПРОВАЛ] ON DELETE CASCADE: позиции остались.")
+    except sqlite3.Error as e:
+        print(f"[ОШИБКА] ON DELETE CASCADE: {e}")
+    finally:
+        conn.close()
 
 if __name__ == "__main__":
     main()
