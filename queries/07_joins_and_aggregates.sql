@@ -1,188 +1,106 @@
-SELECT
-    o.order_id,
-    o.order_date,
-    u.last_name,
-    u.first_name
+SELECT o.order_id, o.order_date, u.last_name, u.first_name
 FROM orders o
-INNER JOIN users u ON o.user_id = u.user_id
-ORDER BY o.order_id;
+INNER JOIN users u ON o.user_id = u.user_id;
 
-
-SELECT
-    si.stock_item_id,
-    p.product_name,
-    s.size_value
+SELECT si.stock_item_id, p.product_name, s.size_value
 FROM stock_items si
 INNER JOIN products p ON si.product_id = p.product_id
-INNER JOIN sizes    s ON si.size_id   = s.size_id
-ORDER BY si.stock_item_id;
+INNER JOIN sizes s ON si.size_id = s.size_id;
 
-
-SELECT
-    o.order_id,
-    o.order_date,
-    u.last_name,
-    u.first_name,
-    p.product_name,
-    oi.quantity
+SELECT o.order_id, u.last_name, u.first_name, p.product_name
 FROM orders o
-INNER JOIN users       u  ON o.user_id        = u.user_id
-INNER JOIN order_items oi ON o.order_id       = oi.order_id
+INNER JOIN users u ON o.user_id = u.user_id
+INNER JOIN order_items oi ON o.order_id = oi.order_id
 INNER JOIN stock_items si ON oi.stock_item_id = si.stock_item_id
-INNER JOIN products    p  ON si.product_id    = p.product_id
-ORDER BY o.order_id, p.product_name;
+INNER JOIN products p ON si.product_id = p.product_id;
 
-
-SELECT
-    u.user_id,
-    u.last_name,
-    u.first_name,
-    o.order_id
+SELECT u.user_id, u.last_name, u.first_name, o.order_id
 FROM users u
-LEFT JOIN orders o ON u.user_id = o.user_id
-ORDER BY u.user_id, o.order_id;
+LEFT JOIN orders o ON u.user_id = o.user_id;
 
 
+SELECT COUNT(*) AS total_users FROM users;
 
-SELECT COUNT(*) AS total_users
-FROM users;
+SELECT AVG(price) AS avg_price FROM products;
 
+SELECT MIN(price) AS min_price, MAX(price) AS max_price FROM products;
 
-SELECT AVG(price) AS avg_price
-FROM products;
-
-
-SELECT
-    MIN(price) AS min_price,
-    MAX(price) AS max_price
-FROM products;
+SELECT SUM(quantity * price) AS total_revenue FROM order_items;
 
 
-SELECT SUM(quantity * price) AS total_revenue
-FROM order_items;
-
-
-
-SELECT
-    category,
-    COUNT(*) AS products_count
+SELECT category, COUNT(*) AS product_count
 FROM products
-GROUP BY category
-ORDER BY products_count DESC;
+GROUP BY category;
 
-
-SELECT
-    manufacturer,
-    AVG(price) AS avg_price
+SELECT manufacturer, AVG(price) AS avg_price
 FROM products
-GROUP BY manufacturer
-ORDER BY avg_price DESC;
+GROUP BY manufacturer;
 
-
-SELECT
-    u.user_id,
-    u.last_name,
-    u.first_name,
-    SUM(oi.quantity * oi.price) AS total_amount
+SELECT u.user_id, u.last_name, u.first_name,
+       SUM(oi.quantity * oi.price) AS total_spent
 FROM users u
-INNER JOIN orders      o  ON u.user_id        = o.user_id
-INNER JOIN order_items oi ON o.order_id       = oi.order_id
-GROUP BY u.user_id, u.last_name, u.first_name
-ORDER BY total_amount DESC;
+INNER JOIN orders o ON u.user_id = o.user_id
+INNER JOIN order_items oi ON o.order_id = oi.order_id
+GROUP BY u.user_id, u.last_name, u.first_name;
 
-
-SELECT
-    p.product_name,
-    SUM(oi.quantity) AS pairs_sold
+SELECT p.product_name, SUM(oi.quantity) AS pairs_sold
 FROM order_items oi
 INNER JOIN stock_items si ON oi.stock_item_id = si.stock_item_id
-INNER JOIN products    p  ON si.product_id    = p.product_id
-GROUP BY p.product_name
-ORDER BY pairs_sold DESC;
+INNER JOIN products p ON si.product_id = p.product_id
+GROUP BY p.product_name;
+
+SELECT s.size_value, COUNT(*) AS stock_count
+FROM stock_items si
+INNER JOIN sizes s ON si.size_id = s.size_id
+GROUP BY s.size_value;
 
 
-SELECT
-    s.size_value,
-    COUNT(si.stock_item_id) AS stock_items_count
-FROM sizes s
-INNER JOIN stock_items si ON s.size_id = si.size_id
-GROUP BY s.size_value
-ORDER BY s.size_value;
-
-
-
-
-SELECT
-    category,
-    COUNT(*) AS models_count
+SELECT category, COUNT(*) AS model_count
 FROM products
 GROUP BY category
 HAVING COUNT(*) > 3;
 
-
-SELECT
-    u.user_id,
-    u.last_name,
-    u.first_name,
-    COUNT(o.order_id) AS orders_count
+SELECT u.user_id, u.last_name, u.first_name,
+       COUNT(o.order_id) AS order_count
 FROM users u
 INNER JOIN orders o ON u.user_id = o.user_id
 GROUP BY u.user_id, u.last_name, u.first_name
-HAVING COUNT(o.order_id) > 2
-ORDER BY orders_count DESC;
+HAVING COUNT(o.order_id) > 2;
 
-
-SELECT
-    p.product_name,
-    SUM(oi.quantity * oi.price) AS total_sales
+SELECT p.product_name, SUM(oi.quantity * oi.price) AS total_sales
 FROM order_items oi
 INNER JOIN stock_items si ON oi.stock_item_id = si.stock_item_id
-INNER JOIN products    p  ON si.product_id    = p.product_id
+INNER JOIN products p ON si.product_id = p.product_id
 GROUP BY p.product_name
-HAVING SUM(oi.quantity * oi.price) > 100000
-ORDER BY total_sales DESC;
+HAVING SUM(oi.quantity * oi.price) > 100000;
 
 
-
-
-SELECT
-    s.size_value,
-    SUM(oi.quantity) AS total_sold
+SELECT s.size_value, SUM(oi.quantity) AS total_sold
 FROM order_items oi
 INNER JOIN stock_items si ON oi.stock_item_id = si.stock_item_id
-INNER JOIN sizes       s  ON si.size_id       = s.size_id
+INNER JOIN sizes s ON si.size_id = s.size_id
 GROUP BY s.size_value
 ORDER BY total_sold DESC
 LIMIT 3;
 
-
-SELECT
-    u.user_id,
-    u.last_name,
-    u.first_name
+SELECT u.user_id, u.last_name, u.first_name
 FROM users u
 LEFT JOIN orders o ON u.user_id = o.user_id
-WHERE o.order_id IS NULL
-ORDER BY u.user_id;
 
+WHERE o.order_id IS NULL;
 
-SELECT AVG(order_total) AS avg_order_amount
+SELECT AVG(order_total) AS avg_order_value
 FROM (
-    SELECT
-        o.order_id,
-        SUM(oi.quantity * oi.price) AS order_total
+    SELECT o.order_id, SUM(oi.quantity * oi.price) AS order_total
     FROM orders o
     INNER JOIN order_items oi ON o.order_id = oi.order_id
     GROUP BY o.order_id
-) AS order_sums;
+);
 
-
-SELECT
-    p.manufacturer,
-    SUM(oi.quantity * oi.price) AS total_revenue
+SELECT p.manufacturer, SUM(oi.quantity * oi.price) AS total_revenue
 FROM order_items oi
 INNER JOIN stock_items si ON oi.stock_item_id = si.stock_item_id
-INNER JOIN products    p  ON si.product_id    = p.product_id
+INNER JOIN products p ON si.product_id = p.product_id
 GROUP BY p.manufacturer
 ORDER BY total_revenue DESC
 LIMIT 1;

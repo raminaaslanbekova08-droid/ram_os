@@ -1,87 +1,65 @@
 import sqlite3
-from pathlib import Path
+import os
 
-DB_PATH = Path(__file__).resolve().parent.parent / "db" / "shoe_store.sqlite"
+DB_PATH = "db/shoe_store.sqlite"
 
-def get_connection():
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-def drop_all_tables():
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("PRAGMA foreign_keys = OFF;")
-    tables = ["order_items", "orders", "stock_items", "products", "users", "sizes", "roles"]
-    for table in tables:
-        cur.execute(f"DROP TABLE IF EXISTS {table};")
-    conn.commit()
-    conn.close()
-
-def create_tables():
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("PRAGMA foreign_keys = ON;")
-
+def create_db():
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     
-    cur.execute("""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute("PRAGMA foreign_keys = ON;")
+
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS roles (
             role_id INTEGER PRIMARY KEY AUTOINCREMENT,
             role_name TEXT NOT NULL UNIQUE
         );
     """)
 
-    
-    cur.execute("""
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS sizes (
             size_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            size_value REAL NOT NULL UNIQUE CHECK (size_value > 20 AND size_value < 50)
+            size_value REAL NOT NULL UNIQUE
         );
     """)
 
-    
-    cur.execute("""
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             user_id INTEGER PRIMARY KEY AUTOINCREMENT,
             last_name TEXT NOT NULL,
             first_name TEXT NOT NULL,
             middle_name TEXT,
-            login TEXT NOT NULL UNIQUE CHECK (length(login) >= 3 AND length(login) <= 20),
+            login TEXT NOT NULL UNIQUE,
             role_id INTEGER NOT NULL,
             FOREIGN KEY (role_id) REFERENCES roles(role_id) ON DELETE RESTRICT
         );
     """)
 
-
-    cur.execute("""
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS products (
             product_id INTEGER PRIMARY KEY AUTOINCREMENT,
             category TEXT NOT NULL,
-            subcategory TEXT,
             manufacturer TEXT NOT NULL,
-            product_name TEXT NOT NULL CHECK (length(trim(product_name)) > 0),
-            image_path TEXT,
-            composition TEXT,
-            description TEXT,
-            price REAL NOT NULL CHECK (price > 0 AND price < 1000000)
+            product_name TEXT NOT NULL,
+            price REAL NOT NULL CHECK (price > 0),
+            image_path TEXT
         );
     """)
 
-    
-    cur.execute("""
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS stock_items (
             stock_item_id INTEGER PRIMARY KEY AUTOINCREMENT,
             product_id INTEGER NOT NULL,
             size_id INTEGER NOT NULL,
-            quantity_available INTEGER NOT NULL DEFAULT 0 CHECK (quantity_available >= 0),
+            quantity_available INTEGER NOT NULL DEFAULT 0 CHECK(quantity_available >= 0),
             FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE RESTRICT,
             FOREIGN KEY (size_id) REFERENCES sizes(size_id) ON DELETE RESTRICT
         );
     """)
 
-    
-    cur.execute("""
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS orders (
             order_id INTEGER PRIMARY KEY AUTOINCREMENT,
             order_date TEXT NOT NULL,
@@ -90,39 +68,21 @@ def create_tables():
         );
     """)
 
-
-    cur.execute("""
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS order_items (
             order_item_id INTEGER PRIMARY KEY AUTOINCREMENT,
             order_id INTEGER NOT NULL,
             stock_item_id INTEGER NOT NULL,
-            quantity INTEGER NOT NULL CHECK (quantity > 0),
-            price REAL NOT NULL CHECK (price > 0),
+            quantity INTEGER NOT NULL CHECK(quantity > 0),
+            price REAL NOT NULL CHECK(price > 0),
             FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,
             FOREIGN KEY (stock_item_id) REFERENCES stock_items(stock_item_id) ON DELETE RESTRICT
         );
     """)
 
-    
-    indexes = [
-        "CREATE INDEX IF NOT EXISTS idx_users_role_id ON users(role_id);",
-        "CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);",
-        "CREATE INDEX IF NOT EXISTS idx_orders_order_date ON orders(order_date);",
-        "CREATE INDEX IF NOT EXISTS idx_stock_items_product_id ON stock_items(product_id);",
-        "CREATE INDEX IF NOT EXISTS idx_stock_items_size_id ON stock_items(size_id);",
-        "CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);",
-        "CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);",
-        "CREATE INDEX IF NOT EXISTS idx_order_items_stock_item_id ON order_items(stock_item_id);"
-    ]
-    for idx in indexes:
-        cur.execute(idx)
-
     conn.commit()
     conn.close()
+    print("База данных успешно создана.")
 
 if __name__ == "__main__":
-    print("Удаление старых таблиц...")
-    drop_all_tables()
-    print("Создание новых таблиц...")
-    create_tables()
-    print("Готово. База данных создана.")
+    create_db()
