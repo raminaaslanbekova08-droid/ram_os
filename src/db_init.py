@@ -19,7 +19,7 @@ def create_db():
     """)
 
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS sizes (
+        CREATE TABLE IF NOT EXISTS sizes (цуввцувц  уцв вуц цувцву  вуц     цуввуц  у   вуцву   уцц ув  цув цув
             size_id INTEGER PRIMARY KEY AUTOINCREMENT,
             size_value REAL NOT NULL UNIQUE
         );

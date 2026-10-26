@@ -1,76 +1,80 @@
-PRAGMA foreign_keys = ON;
+DROP TABLE IF EXISTS order_items;
+DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS stock_items;
+DROP TABLE IF EXISTS products;
+DROP TABLE IF EXISTS sizes;
+DROP TABLE IF EXISTS manufacturers;
+DROP TABLE IF EXISTS categories;
+DROP TABLE IF EXISTS users;
 
-CREATE TABLE order_items (
-            order_item_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            order_id INTEGER NOT NULL,
-            stock_item_id INTEGER NOT NULL,
-            quantity INTEGER NOT NULL CHECK (quantity > 0),
-            price REAL NOT NULL CHECK (price > 0),
-            FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,
-            FOREIGN KEY (stock_item_id) REFERENCES stock_items(stock_item_id) ON DELETE RESTRICT
-        );
-
-CREATE TABLE orders (
-            order_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            order_date TEXT NOT NULL,
-            user_id INTEGER NOT NULL,
-            FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE RESTRICT
-        );
-
-CREATE TABLE products (
-            product_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            category TEXT NOT NULL,
-            subcategory TEXT,
-            manufacturer TEXT NOT NULL,
-            product_name TEXT NOT NULL CHECK (length(trim(product_name)) > 0),
-            image_path TEXT,
-            composition TEXT,
-            description TEXT,
-            price REAL NOT NULL CHECK (price > 0 AND price < 1000000)
-        );
-
-CREATE TABLE roles (
-            role_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            role_name TEXT NOT NULL UNIQUE
-        );
-
-CREATE TABLE sizes (
-            size_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            size_value REAL NOT NULL UNIQUE CHECK (size_value > 20 AND size_value < 50)
-        );
-
-CREATE TABLE stock_items (
-            stock_item_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            product_id INTEGER NOT NULL,
-            size_id INTEGER NOT NULL,
-            quantity_available INTEGER NOT NULL DEFAULT 0 CHECK (quantity_available >= 0),
-            FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE RESTRICT,
-            FOREIGN KEY (size_id) REFERENCES sizes(size_id) ON DELETE RESTRICT
-        );
 
 CREATE TABLE users (
-            user_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            last_name TEXT NOT NULL,
-            first_name TEXT NOT NULL,
-            middle_name TEXT,
-            login TEXT NOT NULL UNIQUE CHECK (length(login) >= 3 AND length(login) <= 20),
-            role_id INTEGER NOT NULL,
-            FOREIGN KEY (role_id) REFERENCES roles(role_id) ON DELETE RESTRICT
-        );
+    user_id     INTEGER PRIMARY KEY,
+    last_name   TEXT    NOT NULL,
+    first_name  TEXT    NOT NULL,
+    login       TEXT    NOT NULL UNIQUE,
+    password    TEXT    NOT NULL,
+    email       TEXT,
+    phone       TEXT
+);
 
-CREATE INDEX idx_order_items_order_id ON order_items(order_id);
 
-CREATE INDEX idx_order_items_stock_item_id ON order_items(stock_item_id);
+CREATE TABLE categories (
+    category_id   INTEGER PRIMARY KEY,
+    category_name TEXT    NOT NULL UNIQUE
+);
 
-CREATE INDEX idx_orders_order_date ON orders(order_date);
 
-CREATE INDEX idx_orders_user_id ON orders(user_id);
+CREATE TABLE manufacturers (
+    manufacturer_id   INTEGER PRIMARY KEY,
+    manufacturer_name TEXT    NOT NULL UNIQUE
+);
 
-CREATE INDEX idx_products_category ON products(category);
 
-CREATE INDEX idx_stock_items_product_id ON stock_items(product_id);
+CREATE TABLE products (
+    product_id   INTEGER PRIMARY KEY,
+    product_name TEXT    NOT NULL,
+    category     TEXT    NOT NULL,
+    manufacturer TEXT    NOT NULL,
+    price        REAL    NOT NULL,
+    description  TEXT
+);
 
-CREATE INDEX idx_stock_items_size_id ON stock_items(size_id);
 
-CREATE INDEX idx_users_role_id ON users(role_id);
+CREATE TABLE sizes (
+    size_id    INTEGER PRIMARY KEY,
+    size_value REAL    NOT NULL UNIQUE
+);
 
+
+CREATE TABLE stock_items (
+    stock_item_id INTEGER PRIMARY KEY,
+    product_id    INTEGER NOT NULL,
+    size_id       INTEGER NOT NULL,
+    quantity      INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (product_id) REFERENCES products(product_id),
+    FOREIGN KEY (size_id)    REFERENCES sizes(size_id),
+    UNIQUE (product_id, size_id)
+);
+
+
+CREATE TABLE orders (
+    order_id   INTEGER PRIMARY KEY,
+    user_id    INTEGER NOT NULL,
+    order_date TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status     TEXT    NOT NULL DEFAULT 'new',
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+
+CREATE TABLE order_items (
+    order_item_id INTEGER PRIMARY KEY,
+    order_id      INTEGER NOT NULL,
+    product_id    INTEGER NOT NULL,
+    size_id       INTEGER,
+    quantity      INTEGER NOT NULL,
+    price         REAL    NOT NULL,
+    FOREIGN KEY (order_id)   REFERENCES orders(order_id),
+    FOREIGN KEY (product_id) REFERENCES products(product_id),
+    FOREIGN KEY (size_id)    REFERENCES sizes(size_id)
+);
