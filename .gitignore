@@ -2,3 +2,11 @@ __pycache__/
 *.pyc
 .vscode/
 *.log
+
+db/shoe_store.sqlite
+db/backups/
+*.sqlite
+
+# Игнорировать системный мусор
+__pycache__/
+.vscode/
