@@ -1,0 +1,27 @@
+[33m8fd1432[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m Day 13: SQL injection protection, password hashing, and security policy
+[33mc55d41f[m Day 12: Database administration, roles and backup
+[33m872f5a7[m Day 11: Triggers, audit log, and business logic automation
+[33m9dded9e[m Day 10: Procedures and functions for SQLite and PostgreSQL
+[33m06ba712[m Day 9: Views, indexes and EXPLAIN analysis
+[33m65e54a3[m Days 8-9: Finished practical work
+[33m519c242[m Day 7: JOINs, GROUP BY and aggregate functions
+[33mc376093[m Day 7: JOINs, GROUP BY and aggregate functions
+[33m055bf5d[m Day 4: fully completed all reports and tasks
+[33md95656c[m Day 4: database schema created, constraints and seed data
+[33m3bb635b[m Day 4: database schema created, constraints and seed data
+[33m0f8d264[m Добавлены вопросы для самопроверки по дням 1-3
+[33m2ea8dbb[m Исправлен путь к базе, удалён дубликат shoe-store.sqlite
+[33m036f73e[m Исправлен путь к базе, удалён дубликат
+[33m7f3293e[m Исправлен путь к базе, удалён дубликат
+[33m277b8d5[m УП.11 №3: финальный DDL, ограничения, индексы, проверка имён
+[33mf408ba8[m Day 2: complete — day report and schema screenshot added
+[33me47d4d1[m Day 2: add day report
+[33m793c28a[m Day 2: add day report and schema screenshot
+[33m7147c4a[m Day 2: data types, constraints, seed data, and initial queries
+[33m61434f9[m Day 1: domain analysis, normalization, ER diagram, and glossary
+[33m8109378[m Day 1: domain analysis, normalization, ER diagram, and glossary
+[33m0b8a0c4[m first commit
+[33m0c5c6c5[m Day 1: domain analysis, normalization, ER diagram, and glossary
+[33m6c47b44[m Day 1: domain analysis, normalization, ER diagram, and glossary
+[33m0bf1e04[m Fix empty PDF export
+[33m2e6c89b[m Day 1: domain analysis, normalization, ER diagram, and glossary
