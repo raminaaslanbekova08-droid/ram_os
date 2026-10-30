@@ -219,4 +219,4 @@ if __name__ == "__main__":
     for row in get_sales_report(conn):
         print(row)
 
-    conn.close()
+    conn.close()ЫЫ
